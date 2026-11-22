@@ -12,18 +12,35 @@ const STALE_AFTER_SECONDS = Math.max(60, Number(process.env.STALE_AFTER_SECONDS 
 const VALID_CATEGORIES = new Set(['drone', 'rocket']);
 const VALID_STATUSES = new Set(['green', 'red']);
 
-const pool = process.env.DATABASE_URL
-  ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false },
-      max: 8,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000
-    })
-  : null;
+function buildPool() {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return null;
 
+  let connectionString = raw
+    .replace(/[?&]connection_limit=\d+/gi, '')
+    .replace(/[?&]pool_timeout=\d+/gi, '')
+    .replace(/\?&/, '?')
+    .replace(/[?&]$/, '');
+
+  const useSSL =
+    process.env.PGSSLMODE === 'disable'
+      ? false
+      : { rejectUnauthorized: false };
+
+  return new Pool({
+    connectionString,
+    ssl: useSSL,
+    max: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 15000,
+    allowExitOnIdle: false
+  });
+}
+
+const pool = buildPool();
 let databaseReady = false;
 let initializing = false;
+let lastDbError = null;
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -36,9 +53,21 @@ app.use((req, res, next) => {
 });
 
 async function initializeDatabase() {
-  if (!pool || initializing || databaseReady) return;
+  if (!pool || initializing) return;
+  if (databaseReady) {
+    try {
+      await pool.query('SELECT 1');
+      return;
+    } catch (e) {
+      databaseReady = false;
+      lastDbError = e.message;
+      console.error('[db] lost connection:', e.message);
+    }
+  }
+
   initializing = true;
   try {
+    await pool.query('SELECT 1');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS current_status (
         category   VARCHAR(20) PRIMARY KEY CHECK (category IN ('drone', 'rocket')),
@@ -69,15 +98,17 @@ async function initializeDatabase() {
     for (const cat of ['drone', 'rocket']) {
       await pool.query(
         `INSERT INTO current_status (category, status, updated_at, source)
-         VALUES ($1, 'green', NOW() - INTERVAL '1 year', 'system')
+         VALUES ($1, 'green', NOW(), 'system')
          ON CONFLICT (category) DO NOTHING`,
         [cat]
       );
     }
     databaseReady = true;
+    lastDbError = null;
     console.log('[db] ready');
   } catch (error) {
     databaseReady = false;
+    lastDbError = error.message;
     console.error('[db] init failed:', error.message);
   } finally {
     initializing = false;
@@ -92,10 +123,14 @@ function isAuthorized(req) {
     req.get('x-api-key') ||
     (authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '');
   if (!supplied) return false;
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  try {
+    const a = Buffer.from(supplied);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch (_) {
+    return false;
+  }
 }
 
 function displayOf(row, serverConnected) {
@@ -129,25 +164,41 @@ function displayOf(row, serverConnected) {
 }
 
 app.get('/api/health', async (_req, res) => {
+  if (pool && !databaseReady) {
+    await initializeDatabase();
+  }
   let lastSeen = null;
   if (pool && databaseReady) {
     try {
       const r = await pool.query('SELECT last_roblox_seen_at FROM system_state WHERE id = 1');
       lastSeen = r.rows[0] && r.rows[0].last_roblox_seen_at;
-    } catch (_) {}
+    } catch (e) {
+      databaseReady = false;
+      lastDbError = e.message;
+    }
   }
   res.status(databaseReady ? 200 : 503).json({
     ok: databaseReady,
     service: 'sever-operativ',
     database: databaseReady ? 'connected' : 'unavailable',
+    databaseError: databaseReady ? null : lastDbError,
+    hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
     staleAfterSeconds: STALE_AFTER_SECONDS,
     lastRobloxSeenAt: lastSeen ? new Date(lastSeen).toISOString() : null
   });
 });
 
 app.get('/api/status', async (_req, res) => {
+  if (pool && !databaseReady) {
+    await initializeDatabase();
+  }
   if (!pool || !databaseReady) {
-    return res.status(503).json({ ok: false, error: 'database_unavailable' });
+    return res.status(503).json({
+      ok: false,
+      error: 'database_unavailable',
+      message: 'База данных недоступна. Проверьте DATABASE_URL в ONREZA.',
+      databaseError: lastDbError
+    });
   }
   try {
     const [currentRes, historyRes, stateRes] = await Promise.all([
@@ -196,12 +247,15 @@ app.get('/api/status', async (_req, res) => {
     });
   } catch (error) {
     console.error('[api/status]', error.message);
-    res.status(503).json({ ok: false, error: 'status_temporarily_unavailable' });
+    databaseReady = false;
+    lastDbError = error.message;
+    res.status(503).json({ ok: false, error: 'status_temporarily_unavailable', databaseError: error.message });
   }
 });
 
 app.post('/api/roblox/heartbeat', async (req, res) => {
   if (!isAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  if (pool && !databaseReady) await initializeDatabase();
   if (!pool || !databaseReady) return res.status(503).json({ ok: false, error: 'database_unavailable' });
   try {
     await pool.query(
@@ -210,12 +264,15 @@ app.post('/api/roblox/heartbeat', async (req, res) => {
     res.json({ ok: true, receivedAt: new Date().toISOString() });
   } catch (error) {
     console.error('[heartbeat]', error.message);
+    databaseReady = false;
+    lastDbError = error.message;
     res.status(500).json({ ok: false, error: 'heartbeat_failed' });
   }
 });
 
 app.post('/api/roblox/status', async (req, res) => {
   if (!isAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  if (pool && !databaseReady) await initializeDatabase();
   if (!pool || !databaseReady) return res.status(503).json({ ok: false, error: 'database_unavailable' });
 
   const body = req.body || {};
@@ -279,6 +336,8 @@ app.post('/api/roblox/status', async (req, res) => {
       try { await client.query('ROLLBACK'); } catch (_) {}
     }
     console.error('[status]', error.message);
+    databaseReady = false;
+    lastDbError = error.message;
     res.status(500).json({ ok: false, error: 'status_update_failed' });
   } finally {
     if (client) client.release();
@@ -308,10 +367,11 @@ app.use((error, _req, res, _next) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Север Оператив listening on :' + PORT);
   console.log('STALE_AFTER_SECONDS=' + STALE_AFTER_SECONDS);
-  if (!pool) console.warn('DATABASE_URL missing');
+  console.log('DATABASE_URL set:', Boolean(process.env.DATABASE_URL));
+  if (!pool) console.warn('DATABASE_URL missing — API will return 503');
   if (!process.env.STATUS_API_KEY) console.warn('STATUS_API_KEY missing');
   initializeDatabase();
-  const retry = setInterval(initializeDatabase, 15000);
+  const retry = setInterval(initializeDatabase, 10000);
   if (typeof retry.unref === 'function') retry.unref();
 });
 
