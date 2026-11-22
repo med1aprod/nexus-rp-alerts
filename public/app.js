@@ -55,8 +55,10 @@
     const card = $('card-' + prefix);
     if (!card || !cat) return;
 
-    const display = cat.displayStatus || 'stale';
-    card.dataset.state = display;
+    const status = cat.status || cat.displayStatus || 'stale';
+    const stale = Boolean(cat.isStale);
+    const visual = (status === 'green' || status === 'red') ? status : 'stale';
+    card.dataset.state = visual;
 
     const codeEl = $(prefix + '-code');
     const labelEl = $(prefix + '-label');
@@ -64,18 +66,26 @@
     const updatedEl = $(prefix + '-updated');
     const ageEl = $(prefix + '-age');
 
-    if (display === 'green') {
+    if (visual === 'green') {
       if (codeEl) codeEl.textContent = 'ЗЕЛЁНЫЙ';
-      if (labelEl) labelEl.textContent = 'Штатный режим · угроз нет';
-      if (badgeEl) badgeEl.textContent = 'СПОКОЙНО';
-    } else if (display === 'red') {
+      if (labelEl) {
+        labelEl.textContent = stale
+          ? 'Штатный режим · нет свежего пинга от сервера'
+          : 'Штатный режим · угроз нет';
+      }
+      if (badgeEl) badgeEl.textContent = stale ? 'СПОКОЙНО · ?' : 'СПОКОЙНО';
+    } else if (visual === 'red') {
       if (codeEl) codeEl.textContent = 'КРАСНЫЙ';
-      if (labelEl) labelEl.textContent = 'Объявлена тревога';
-      if (badgeEl) badgeEl.textContent = 'ТРЕВОГА';
+      if (labelEl) {
+        labelEl.textContent = stale
+          ? 'Тревога · нет свежего пинга от сервера'
+          : 'Объявлена тревога';
+      }
+      if (badgeEl) badgeEl.textContent = stale ? 'ТРЕВОГА · ?' : 'ТРЕВОГА';
     } else {
-      if (codeEl) codeEl.textContent = 'НЕТ СВЯЗИ';
-      if (labelEl) labelEl.textContent = 'Вероятно, статус устарел и не имеет значения';
-      if (badgeEl) badgeEl.textContent = 'OFFLINE';
+      if (codeEl) codeEl.textContent = 'НЕТ ДАННЫХ';
+      if (labelEl) labelEl.textContent = 'Статус ещё не передавался с игрового сервера';
+      if (badgeEl) badgeEl.textContent = '—';
     }
 
     if (updatedEl) {
@@ -137,16 +147,16 @@
       const res = await fetch('/api/status', { cache: 'no-store' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        setConn('fail', 'НЕТ СВЯЗИ');
+        setConn('fail', 'НЕТ СВЯЗИ С API');
         return;
       }
 
       const connected = data.connection && data.connection.isConnected;
-      setConn(connected ? 'ok' : 'warn', connected ? 'СЕРВЕР НА СВЯЗИ' : 'НЕТ HEARTBEAT');
+      setConn(connected ? 'ok' : 'warn', connected ? 'СЕРВЕР НА СВЯЗИ' : 'НЕТ ПИНГА');
 
       const cats = data.categories || {};
-      paintCard('drone', cats.drone || { displayStatus: 'stale', ageSeconds: null });
-      paintCard('rocket', cats.rocket || { displayStatus: 'stale', ageSeconds: null });
+      paintCard('drone', cats.drone || { displayStatus: 'stale', status: null, isStale: true, ageSeconds: null });
+      paintCard('rocket', cats.rocket || { displayStatus: 'stale', status: null, isStale: true, ageSeconds: null });
       paintHistory(data.history);
     } catch (e) {
       setConn('fail', 'ОШИБКА СЕТИ');

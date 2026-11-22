@@ -8,7 +8,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const STALE_AFTER_SECONDS = Math.max(60, Number(process.env.STALE_AFTER_SECONDS || 300));
+const STALE_AFTER_SECONDS = Math.max(60, Number(process.env.STALE_AFTER_SECONDS || 900));
 const VALID_CATEGORIES = new Set(['drone', 'rocket']);
 const VALID_STATUSES = new Set(['green', 'red']);
 
@@ -117,12 +117,14 @@ function displayOf(row, serverConnected) {
   return {
     category: row.category,
     status: row.status,
-    displayStatus: isStale ? 'stale' : row.status,
+    displayStatus: row.status,
     updatedAt: updatedAt.toISOString(),
     source: row.source || null,
     ageSeconds,
     isStale,
-    message: isStale ? 'Вероятно, статус устарел и не имеет значения.' : null
+    message: isStale
+      ? 'Нет свежего сигнала от игрового сервера — данные могут быть неактуальны.'
+      : null
   };
 }
 
