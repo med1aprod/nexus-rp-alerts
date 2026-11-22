@@ -73,10 +73,19 @@ function isAuthorized(req) {
 }
 
 app.get('/api/health', (_req, res) => {
+  const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+  const hasApiKey = Boolean(process.env.STATUS_API_KEY && process.env.STATUS_API_KEY.length >= 8);
   res.status(databaseReady ? 200 : 503).json({
     ok: databaseReady,
     service: 'sever-operativ',
-    database: databaseReady ? 'connected' : 'unavailable'
+    database: databaseReady ? 'connected' : 'unavailable',
+    diagnostics: {
+      hasDatabaseUrl,
+      hasApiKey,
+      nodeEnv: process.env.NODE_ENV || 'undefined',
+      port: Number(process.env.PORT || 3000),
+      serverTime: new Date().toISOString()
+    }
   });
 });
 
