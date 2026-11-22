@@ -8,7 +8,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const STALE_AFTER_SECONDS = Math.max(30, Number(process.env.STALE_AFTER_SECONDS || 120));
+const STALE_AFTER_SECONDS = Math.max(60, Number(process.env.STALE_AFTER_SECONDS || 300));
 const VALID_CATEGORIES = new Set(['drone', 'rocket']);
 const VALID_STATUSES = new Set(['green', 'red']);
 
@@ -113,8 +113,6 @@ function displayOf(row, serverConnected) {
   }
   const updatedAt = new Date(row.updated_at);
   const ageSeconds = Math.floor((Date.now() - updatedAt.getTime()) / 1000);
-  // Пока Roblox-сервер на связи — всегда green/red.
-  // Stale только если сервера нет дольше STALE_AFTER_SECONDS.
   const isStale = !serverConnected;
   return {
     category: row.category,
@@ -307,6 +305,7 @@ app.use((error, _req, res, _next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Север Оператив listening on :' + PORT);
+  console.log('STALE_AFTER_SECONDS=' + STALE_AFTER_SECONDS);
   if (!pool) console.warn('DATABASE_URL missing');
   if (!process.env.STATUS_API_KEY) console.warn('STATUS_API_KEY missing');
   initializeDatabase();
