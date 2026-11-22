@@ -1,22 +1,23 @@
 'use strict';
 
-(() => {
-  const POLL_INTERVAL = 5000;
-  const $ = (id) => document.getElementById(id);
-  const card = $('statusCard');
-  let currentSince = null;
-  let lastPayload = null;
+(function () {
+  const INTERVAL = 5000;
+  const byId = (id) => document.getElementById(id);
+  const card = byId('statusCard');
+  let lastGoodResponse = false;
+  let activeSince = null;
+  let requestInProgress = false;
 
-  function formatDate(value) {
+  function dateParts(value) {
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return { date: '—', time: '' };
+    if (Number.isNaN(date.getTime())) return { date: '—', time: '—' };
     return {
       date: new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }).format(date),
       time: new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(date)
     };
   }
 
-  function formatDuration(value) {
+  function elapsed(value) {
     if (!value) return '—';
     const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
     const days = Math.floor(seconds / 86400);
@@ -33,88 +34,103 @@
     }[char]));
   }
 
-  function setConnection(connected) {
-    $('connectionIndicatorWrap').classList.toggle('ok', connected);
-    $('connectionIndicatorWrap').classList.toggle('fail', !connected);
-    $('connectionText').textContent = connected ? 'СИСТЕМА НА СВЯЗИ' : 'НЕТ СОЕДИНЕНИЯ';
+  function connectionState(state) {
+    const element = byId('connection');
+    element.classList.toggle('ok', state);
+    element.classList.toggle('fail', !state);
+    byId('connectionText').textContent = state ? 'СИСТЕМА НА СВЯЗИ' : 'НЕТ СОЕДИНЕНИЯ';
   }
 
-  function renderStatus(current) {
+  function showStatus(current) {
     if (!current) {
       card.dataset.status = 'unknown';
-      $('statusCaption').textContent = 'СТАТУС НЕ УСТАНОВЛЕН';
-      $('statusTitle').textContent = 'Ожидание данных';
-      $('statusDescription').textContent = 'Система ожидает первое обновление статуса от игрового сервера.';
-      $('lastChanged').textContent = '—';
-      $('duration').textContent = '—';
-      currentSince = null;
+      byId('statusEyebrow').textContent = 'СТАТУС ЕЩЁ НЕ УСТАНОВЛЕН';
+      byId('statusTitle').textContent = 'Ожидание данных';
+      byId('statusDescription').textContent = 'Система ожидает первое обновление статуса игрового сервера.';
+      byId('lastChanged').textContent = '—';
+      byId('activeDuration').textContent = '—';
+      activeSince = null;
       return;
     }
     const green = current.status === 'green';
-    const stamp = formatDate(current.changed_at);
+    const stamp = dateParts(current.changed_at);
     card.dataset.status = green ? 'green' : 'red';
-    $('statusCaption').textContent = 'ТЕКУЩИЙ ИГРОВОЙ СТАТУС';
-    $('statusTitle').textContent = green ? 'Код зелёный' : 'Код красный';
-    $('statusDescription').textContent = green
+    byId('statusEyebrow').textContent = 'ТЕКУЩИЙ ИГРОВОЙ СТАТУС';
+    byId('statusTitle').textContent = green ? 'Код зелёный' : 'Код красный';
+    byId('statusDescription').textContent = green
       ? 'Штатный режим игрового сервера. Статус действует до следующего обновления.'
-      : 'Активирован специальный внутриигровой режим. Следите за дальнейшими обновлениями.';
-    $('lastChanged').textContent = stamp.time + ' · ' + stamp.date;
-    currentSince = current.changed_at;
-    $('duration').textContent = formatDuration(currentSince);
+      : 'На сервере действует особый внутриигровой режим. Следите за обновлениями.';
+    byId('lastChanged').textContent = stamp.time + ' · ' + stamp.date;
+    activeSince = current.changed_at;
+    byId('activeDuration').textContent = elapsed(activeSince);
   }
 
-  function renderHistory(items) {
-    $('historyCount').textContent = String(items.length).padStart(2, '0') + ' / 50';
-    $('historyCounter').textContent = String(items.length).padStart(2, '0');
-    if (!items.length) {
-      $('historyList').innerHTML = '<div class="empty-state"><span class="empty-mark">—</span><strong>Событий пока нет</strong><p>Новые изменения появятся здесь автоматически.</p></div>';
+  function showHistory(items) {
+    const list = Array.isArray(items) ? items.slice(0, 50) : [];
+    byId('historyCount').textContent = String(list.length).padStart(2, '0') + ' / 50';
+    byId('historyCounter').textContent = String(list.length).padStart(2, '0');
+    if (!list.length) {
+      byId('historyList').innerHTML = '<div class="empty-state"><span>✳</span><b>Журнал пока пуст</b><p>Когда статус изменится, запись появится здесь.</p></div>';
       return;
     }
-    $('historyList').innerHTML = items.map((item) => {
+    byId('historyList').innerHTML = list.map((item) => {
       const green = item.status === 'green';
-      const stamp = formatDate(item.changed_at);
+      const stamp = dateParts(item.changed_at);
       const title = green ? 'Установлен статус «Код зелёный»' : 'Установлен статус «Код красный»';
-      const details = [item.changed_by, item.note].filter(Boolean).map(escapeHtml).join(' · ') || 'Событие игровой системы';
-      return '<article class="history-item"><div class="event-main"><span class="event-icon ' + (green ? 'green' : 'red') + '">' + (green ? '✓' : '!') + '</span><div><div class="event-title">' + title + '</div><div class="event-meta">' + details + '</div></div></div><div class="event-time">' + stamp.time + '<small>' + stamp.date + '</small></div></article>';
+      const detail = [item.changed_by, item.note].filter(Boolean).map(escapeHtml).join(' · ') || 'Событие игровой системы';
+      return '<article class="history-item"><div class="event-main"><span class="event-icon ' + (green ? 'green' : 'red') + '">' + (green ? '✓' : '!') + '</span><div><div class="event-title">' + title + '</div><div class="event-meta">' + detail + '</div></div></div><div class="event-time">' + stamp.time + '<small>' + stamp.date + '</small></div></article>';
     }).join('');
   }
 
   async function refresh() {
+    if (requestInProgress) return;
+    requestInProgress = true;
     try {
-      const response = await fetch('/api/status', { cache: 'no-store', headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error('API ' + response.status);
-      const payload = await response.json();
-      if (!payload.ok) throw new Error('API unavailable');
-      lastPayload = payload;
-      renderStatus(payload.current);
-      renderHistory(Array.isArray(payload.history) ? payload.history.slice(0, 50) : []);
-      setConnection(true);
+      const response = await fetch('/api/status', {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) throw new Error('Status API returned ' + response.status);
+      const data = await response.json();
+      if (!data || data.ok !== true) throw new Error('Invalid status response');
+      showStatus(data.current || null);
+      showHistory(data.history || []);
+      lastGoodResponse = true;
+      connectionState(true);
     } catch (_error) {
-      setConnection(false);
-      if (!lastPayload) {
+      connectionState(false);
+      if (!lastGoodResponse) {
         card.dataset.status = 'unknown';
-        $('statusCaption').textContent = 'СОЕДИНЕНИЕ С СИСТЕМОЙ';
-        $('statusTitle').textContent = 'Нет связи';
-        $('statusDescription').textContent = 'Не удалось получить данные. Повторная проверка произойдёт автоматически.';
+        byId('statusEyebrow').textContent = 'ПРОВЕРКА СОЕДИНЕНИЯ';
+        byId('statusTitle').textContent = 'Данные недоступны';
+        byId('statusDescription').textContent = 'Повторная попытка подключения будет выполнена автоматически.';
       }
+    } finally {
+      byId('lastCheck').textContent = new Intl.DateTimeFormat('ru-RU', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).format(new Date());
+      requestInProgress = false;
     }
-    $('lastCheck').textContent = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
   }
 
-  $('menuBtn').addEventListener('click', () => {
-    const open = $('navLinks').classList.toggle('open');
-    $('menuBtn').setAttribute('aria-expanded', String(open));
+  byId('menuToggle').addEventListener('click', function () {
+    const open = byId('navLinks').classList.toggle('open');
+    this.setAttribute('aria-expanded', String(open));
   });
-  document.querySelectorAll('.main-nav a').forEach((link) => link.addEventListener('click', () => {
-    $('navLinks').classList.remove('open');
-    $('menuBtn').setAttribute('aria-expanded', 'false');
-    document.querySelectorAll('.main-nav a').forEach((item) => item.classList.toggle('active', item === link));
-  }));
 
-  $('year').textContent = new Date().getFullYear();
+  document.querySelectorAll('.nav-links a').forEach((link) => {
+    link.addEventListener('click', () => {
+      byId('navLinks').classList.remove('open');
+      byId('menuToggle').setAttribute('aria-expanded', 'false');
+      document.querySelectorAll('.nav-links a').forEach((item) => item.classList.toggle('active', item === link));
+    });
+  });
+
+  byId('year').textContent = new Date().getFullYear();
   refresh();
-  setInterval(refresh, POLL_INTERVAL);
-  setInterval(() => {
-    if (currentSince) $('duration').textContent = formatDuration(currentSince);
+  window.setInterval(refresh, INTERVAL);
+  window.setInterval(() => {
+    if (activeSince) byId('activeDuration').textContent = elapsed(activeSince);
   }, 30000);
 })();
