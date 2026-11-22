@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node --check server.js && node --check public/app.js",
     "build:onreza": "node scripts/build-onreza.js"
   },
   "engines": {
