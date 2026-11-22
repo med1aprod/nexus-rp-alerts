@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#05040a">
-  <meta name="description" content="Север Оператив — система мониторинга игровых статусов Nexus RP. Беспилотная и Ракетная тревога.">
+  <meta name="theme-color" content="#07060d">
+  <meta name="description" content="Север Оператив — единый центр внутриигровых статусов Nexus RP.">
   <title>Север Оператив — Nexus RP</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,162 +14,132 @@
   <script defer src="/app.js"></script>
 </head>
 <body>
-  <div class="ambient ambient-a" aria-hidden="true"></div>
-  <div class="ambient ambient-b" aria-hidden="true"></div>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
   <div class="star-field" aria-hidden="true"></div>
 
   <header class="topbar glass">
     <a class="brand" href="#home" aria-label="Север Оператив">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 48 48" width="28" height="28">
-          <path d="M24 4L42 15v18L24 44 6 33V15L24 4Z" fill="none" stroke="currentColor" stroke-width="1.6"/>
-          <path d="M24 14l8 14H16l8-14Z" fill="currentColor"/>
-        </svg>
+      <span class="brand-mark">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m13 31 11-19 11 19h-6l-5-9-5 9h-6Z" fill="currentColor"/><path d="M24 25v10" stroke="currentColor" stroke-width="2"/></svg>
       </span>
-      <span class="brand-text">
-        <span class="brand-title">СЕВЕР <b>ОПЕРАТИВ</b></span>
-        <span class="brand-sub">Система мониторинга игровых статусов</span>
-      </span>
+      <span class="brand-name">СЕВЕР <b>ОПЕРАТИВ</b><small>NEXUS ROLEPLAY · STATUS CENTER</small></span>
     </a>
-
-    <div class="topbar-meta">
-      <div class="conn-pill" id="connPill" data-state="unknown">
-        <i class="conn-dot"></i>
-        <span id="connLabel">ПОДКЛЮЧЕНИЕ…</span>
-      </div>
-      <div class="clock" id="clock" aria-live="polite">—:—:—</div>
+    <nav class="nav-links" id="navLinks" aria-label="Основная навигация">
+      <a class="active" href="#status">Сводка</a>
+      <a href="#journal">Журнал событий</a>
+      <a href="#about">О системе</a>
+    </nav>
+    <div class="topbar-right">
+      <span class="live-label"><i></i> МОНИТОРИНГ АКТИВЕН</span>
+      <button class="menu-toggle" id="menuToggle" aria-label="Открыть меню" aria-expanded="false">☰</button>
     </div>
   </header>
 
   <main id="home">
     <section class="hero wrap">
-      <div class="hero-eyebrow">
-        <span class="line"></span>
-        NEXUS RP · ОПЕРАТИВНАЯ СВОДКА
-      </div>
-      <h1 class="hero-title">ТЕКУЩАЯ ОБСТАНОВКА</h1>
-      <p class="hero-lead">
-        Актуальные игровые статусы сервера. Две независимые категории.
-        Данные поступают напрямую из Roblox.
-      </p>
-    </section>
-
-    <section class="status-section wrap" id="status" aria-label="Текущие статусы">
-      <div class="cards-grid">
-
-        <article class="status-card glass" id="card-drone" data-display="loading">
-          <div class="card-head">
-            <span class="card-cat">БЕСПИЛОТНАЯ</span>
-            <span class="card-ref">NXR · DRONE</span>
-          </div>
-
-          <div class="card-body">
-            <div class="status-icon" aria-hidden="true">
-              <svg class="icon-svg" viewBox="0 0 64 64" fill="none">
-                <circle cx="32" cy="32" r="22" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>
-                <path d="M32 14v8M32 42v8M14 32h8M42 32h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="32" cy="32" r="6" fill="currentColor"/>
-                <path d="M22 22l6 6M42 22l-6 6M22 42l6-6M42 42l-6-6" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
-              </svg>
-            </div>
-            <div class="status-text">
-              <span class="status-code" id="drone-code">—</span>
-              <span class="status-label" id="drone-label">Загрузка…</span>
-            </div>
-          </div>
-
-          <div class="card-foot">
-            <div class="meta-row">
-              <span>Обновлено</span>
-              <b id="drone-updated">—</b>
-            </div>
-            <div class="meta-row">
-              <span>Возраст</span>
-              <b id="drone-age">—</b>
-            </div>
-            <div class="freshness" id="drone-fresh">
-              <i></i><span>ожидание данных</span>
-            </div>
-          </div>
-          <div class="card-glow" aria-hidden="true"></div>
-        </article>
-
-        <article class="status-card glass" id="card-rocket" data-display="loading">
-          <div class="card-head">
-            <span class="card-cat">РАКЕТНАЯ</span>
-            <span class="card-ref">NXR · ROCKET</span>
-          </div>
-
-          <div class="card-body">
-            <div class="status-icon" aria-hidden="true">
-              <svg class="icon-svg" viewBox="0 0 64 64" fill="none">
-                <path d="M32 8c0 0 14 10 14 28 0 10-6 18-14 22-8-4-14-12-14-22 0-18 14-28 14-28Z" stroke="currentColor" stroke-width="1.8" fill="none"/>
-                <path d="M32 20v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="32" cy="42" r="3" fill="currentColor"/>
-                <path d="M24 50l8 6 8-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-              </svg>
-            </div>
-            <div class="status-text">
-              <span class="status-code" id="rocket-code">—</span>
-              <span class="status-label" id="rocket-label">Загрузка…</span>
-            </div>
-          </div>
-
-          <div class="card-foot">
-            <div class="meta-row">
-              <span>Обновлено</span>
-              <b id="rocket-updated">—</b>
-            </div>
-            <div class="meta-row">
-              <span>Возраст</span>
-              <b id="rocket-age">—</b>
-            </div>
-            <div class="freshness" id="rocket-fresh">
-              <i></i><span>ожидание данных</span>
-            </div>
-          </div>
-          <div class="card-glow" aria-hidden="true"></div>
-        </article>
-
-      </div>
-
-      <div class="legend">
-        <span><i class="lg-green"></i> Код «ЗЕЛЁНЫЙ»</span>
-        <span><i class="lg-red"></i> Код «КРАСНЫЙ»</span>
-        <span><i class="lg-yellow"></i> Информация устарела / отсутствует</span>
-      </div>
-    </section>
-
-    <section class="history-section wrap" id="history" aria-label="История событий">
-      <div class="section-head">
-        <h2>ИСТОРИЯ СОБЫТИЙ</h2>
-        <p>Последние изменения статусов. Heartbeat без смены цвета не записывается.</p>
-      </div>
-
-      <div class="timeline glass" id="timeline">
-        <div class="timeline-empty" id="timelineEmpty">
-          <span>Событий пока нет</span>
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-line"></span> NEXUS RP <span class="eyebrow-separator">/</span> ОПЕРАТИВНАЯ СВОДКА</div>
+        <h1>Система<br><span>игровых статусов</span></h1>
+        <p>Единая информационная панель Nexus RP. Актуальная обстановка игрового сервера, история изменений и оперативные обновления в одном месте.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#status">Текущий статус</a>
+          <a class="button button-ghost" href="#journal">Журнал событий</a>
         </div>
-        <ul class="timeline-list" id="timelineList" hidden></ul>
+      </div>
+      <div class="hero-seal" aria-hidden="true"><div class="seal-ring"></div><div class="seal-core"><span>СО</span><small>STATUS</small></div></div>
+    </section>
+
+    <section class="wrap section" id="status">
+      <div class="section-heading">
+        <div><span class="section-kicker">01 — LIVE STATUS</span><h2>Оперативная сводка</h2></div>
+        <div class="update-chip"><span class="update-arrows">↻</span> ОБНОВЛЕНИЕ КАЖДЫЕ 5 СЕКУНД</div>
+      </div>
+
+      <div class="status-layout">
+        <article class="status-card glass" id="statusCard" data-status="unknown">
+          <div class="card-topline"><span class="card-label"><i></i> ДЕЙСТВУЮЩИЙ СТАТУС</span><span class="card-ref">NXR / STATUS-01</span></div>
+          <div class="status-main">
+            <div class="status-emblem" aria-hidden="true"><span class="emblem-center"></span><span class="emblem-orbit"></span><span class="emblem-orbit inner"></span></div>
+            <div class="status-copy">
+              <span class="status-eyebrow" id="statusEyebrow">ПОЛУЧЕНИЕ ИНФОРМАЦИИ</span>
+              <h3 id="statusTitle">Загрузка<span class="ellipsis">...</span></h3>
+              <p id="statusDescription">Ожидаем ответ системы статусов.</p>
+            </div>
+          </div>
+          <div class="status-footer">
+            <div class="status-detail"><span>ПОСЛЕДНЕЕ ИЗМЕНЕНИЕ</span><b id="lastChanged">—</b></div>
+            <div class="status-detail"><span>ВРЕМЯ ДЕЙСТВИЯ</span><b id="activeDuration">—</b></div>
+            <div class="connection" id="connection"><i></i><span id="connectionText">СОЕДИНЕНИЕ</span></div>
+          </div>
+          <div class="card-corner corner-tl"></div><div class="card-corner corner-br"></div>
+        </article>
+
+        <aside class="side-panel glass">
+          <div class="side-panel-heading"><span>СОСТОЯНИЕ СИСТЕМЫ</span><b>LIVE</b></div>
+          <div class="metric-row"><span class="metric-icon">↻</span><div><strong>05 <small>сек.</small></strong><span>Интервал обновления</span></div></div>
+          <div class="metric-row"><span class="metric-icon">▤</span><div><strong id="historyCount">00 / 50</strong><span>Записей в журнале</span></div></div>
+          <div class="side-separator"></div>
+          <div class="side-line"><span>Последняя проверка</span><b id="lastCheck">—</b></div>
+          <div class="side-line"><span>Источник данных</span><b>STATUS API</b></div>
+          <div class="side-line"><span>Режим просмотра</span><b class="read-only">READ ONLY</b></div>
+          <div class="side-note"><span class="note-star">✳</span><p>Панель отображает только внутриигровые статусы Nexus RP.</p></div>
+        </aside>
+      </div>
+
+      <div class="status-legend">
+        <span><i class="legend-green"></i> КОД ЗЕЛЁНЫЙ — ШТАТНЫЙ РЕЖИМ</span>
+        <span><i class="legend-red"></i> КОД КРАСНЫЙ — ОСОБЫЙ РЕЖИМ</span>
+      </div>
+    </section>
+
+    <section class="wrap section journal-section" id="journal">
+      <div class="section-heading">
+        <div><span class="section-kicker">02 — EVENT LOG</span><h2>Журнал событий</h2><p>История смены игровых статусов.</p></div>
+        <div class="journal-counter"><strong id="historyCounter">00</strong><span>записей</span></div>
+      </div>
+      <div class="journal-panel glass">
+        <div class="journal-header"><span>СОБЫТИЕ</span><span>ДАТА / ВРЕМЯ</span></div>
+        <div class="journal-list" id="historyList">
+          <div class="empty-state"><span>✳</span><b>Журнал пока пуст</b><p>Когда статус изменится, запись появится здесь.</p></div>
+        </div>
+        <div class="journal-footer"><span>ПОСЛЕДНИЕ 50 ЗАПИСЕЙ</span><span><i></i> АВТОСИНХРОНИЗАЦИЯ</span></div>
+      </div>
+    </section>
+
+    <section class="wrap section about-section" id="about">
+      <div class="about-card glass">
+        <div class="about-symbol"><span>СО</span><i></i></div>
+        <div class="about-text"><span class="section-kicker">03 — ABOUT THE SYSTEM</span><h2>Север Оператив</h2><p>Оператор внутриигровой системы статусов Nexus RP. Панель создана для своевременного информирования игроков о текущем состоянии игрового сервера и изменениях обстановки.</p></div>
+        <div class="about-meta"><span>ПРОЕКТ</span><b>NEXUS RP</b><span>СИСТЕМА</span><b>STATUS CENTER</b><span>ВЕРСИЯ</span><b>1.0.0</b></div>
       </div>
     </section>
   </main>
 
-  <footer class="footer wrap">
-    <div class="footer-brand">
-      <strong>NEXUS RP</strong>
-      <span>СЕВЕР ОПЕРАТИВ</span>
-    </div>
-    <div class="footer-tag">Game Status Monitoring System</div>
-    <div class="footer-note">Внутриигровая информационная система · не является государственным сервисом</div>
+  <footer class="wrap footer">
+    <a class="footer-brand" href="#home">СЕВЕР <b>ОПЕРАТИВ</b></a>
+    <span>© <span id="year"></span> NEXUS ROLEPLAY</span>
+    <span class="footer-live"><i></i> STATUS CENTER</span>
   </footer>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <div class="boot-loader" id="bootLoader" aria-hidden="false">
-    <div class="boot-box glass">
-      <div class="boot-spinner"></div>
-      <div class="boot-title">СЕВЕР ОПЕРАТИВ</div>
-      <div class="boot-sub">Подключение к системе мониторинга…</div>
+  <!-- TEMP: diagnostic panel — remove later -->
+  <aside class="debug-panel" id="debugPanel" aria-label="Временная диагностика">
+    <div class="debug-head">
+      <strong>DEBUG · TEMP</strong>
+      <button type="button" id="debugToggle" class="debug-toggle">свернуть</button>
     </div>
-  </div>
+    <div class="debug-body" id="debugBody">
+      <div class="debug-row"><span>Health</span><b id="dbgHealth">—</b></div>
+      <div class="debug-row"><span>Database</span><b id="dbgDb">—</b></div>
+      <div class="debug-row"><span>DATABASE_URL</span><b id="dbgDbUrl">—</b></div>
+      <div class="debug-row"><span>STATUS_API_KEY</span><b id="dbgKey">—</b></div>
+      <div class="debug-row"><span>Status API</span><b id="dbgStatus">—</b></div>
+      <div class="debug-row"><span>Текущий статус</span><b id="dbgCurrent">—</b></div>
+      <div class="debug-row"><span>История</span><b id="dbgHistory">—</b></div>
+      <div class="debug-row"><span>Последний fetch</span><b id="dbgFetch">—</b></div>
+      <pre class="debug-log" id="dbgLog">ожидание…</pre>
+    </div>
+  </aside>
 </body>
 </html>
