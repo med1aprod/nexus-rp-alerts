@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#07060d">
-  <meta name="description" content="Север Оператив — единый центр внутриигровых статусов Nexus RP.">
+  <meta name="theme-color" content="#05040a">
+  <meta name="description" content="Север Оператив — мониторинг игровых статусов Nexus RP: беспилотная и ракетная тревога.">
   <title>Север Оператив — Nexus RP</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,113 +14,142 @@
   <script defer src="/app.js"></script>
 </head>
 <body>
-  <div class="ambient ambient-one" aria-hidden="true"></div>
-  <div class="ambient ambient-two" aria-hidden="true"></div>
-  <div class="star-field" aria-hidden="true"></div>
+  <div class="bg-layer" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-a"></div>
+    <div class="bg-glow bg-glow-b"></div>
+    <div class="bg-glow bg-glow-c"></div>
+    <div class="bg-noise"></div>
+  </div>
 
-  <header class="topbar glass">
-    <a class="brand" href="#home" aria-label="Север Оператив">
-      <span class="brand-mark">
-        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m13 31 11-19 11 19h-6l-5-9-5 9h-6Z" fill="currentColor"/><path d="M24 25v10" stroke="currentColor" stroke-width="2"/></svg>
+  <header class="topbar">
+    <a class="brand" href="#home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="28" height="28"><path d="M24 4L42 15v18L24 44 6 33V15L24 4Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M24 14l8 14H16l8-14Z" fill="currentColor"/></svg>
       </span>
-      <span class="brand-name">СЕВЕР <b>ОПЕРАТИВ</b><small>NEXUS ROLEPLAY · STATUS CENTER</small></span>
+      <span class="brand-text">
+        <span class="brand-title">СЕВЕР <b>ОПЕРАТИВ</b></span>
+        <span class="brand-sub">NEXUS RP · STATUS CENTER</span>
+      </span>
     </a>
-    <nav class="nav-links" id="navLinks" aria-label="Основная навигация">
-      <a class="active" href="#status">Сводка</a>
-      <a href="#journal">Журнал событий</a>
-      <a href="#about">О системе</a>
+    <nav class="nav">
+      <a href="#status" class="nav-link is-active">Статусы</a>
+      <a href="#journal" class="nav-link">Журнал</a>
     </nav>
-    <div class="topbar-right">
-      <span class="live-label"><i></i> МОНИТОРИНГ АКТИВЕН</span>
-      <button class="menu-toggle" id="menuToggle" aria-label="Открыть меню" aria-expanded="false">☰</button>
+    <div class="topbar-meta">
+      <div class="conn" id="connPill" data-state="unknown">
+        <i class="conn-dot"></i>
+        <span id="connLabel">ПОДКЛЮЧЕНИЕ…</span>
+      </div>
+      <div class="clock" id="clock">—:—:—</div>
     </div>
   </header>
 
   <main id="home">
-    <section class="hero wrap">
-      <div class="hero-copy">
-        <div class="eyebrow"><span class="eyebrow-line"></span> NEXUS RP <span class="eyebrow-separator">/</span> ОПЕРАТИВНАЯ СВОДКА</div>
-        <h1>Система<br><span>игровых статусов</span></h1>
-        <p>Единая информационная панель Nexus RP. Актуальная обстановка игрового сервера, история изменений и оперативные обновления в одном месте.</p>
-        <div class="hero-actions">
-          <a class="button button-primary" href="#status">Текущий статус</a>
-          <a class="button button-ghost" href="#journal">Журнал событий</a>
+    <section class="status-section wrap" id="status">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Оперативная сводка · в реальном времени</p>
+          <h1 class="page-title">Текущая обстановка</h1>
+        </div>
+        <div class="live-chip">
+          <span class="pulse"></span>
+          обновление каждые 5 с
         </div>
       </div>
-      <div class="hero-seal" aria-hidden="true"><div class="seal-ring"></div><div class="seal-core"><span>СО</span><small>STATUS</small></div></div>
-    </section>
 
-    <section class="wrap section" id="status">
-      <div class="section-heading">
-        <div><span class="section-kicker">01 — LIVE STATUS</span><h2>Оперативная сводка</h2></div>
-        <div class="update-chip"><span class="update-arrows">↻</span> ОБНОВЛЕНИЕ КАЖДЫЕ 5 СЕКУНД</div>
-      </div>
-
-      <div class="status-layout">
-        <article class="status-card glass" id="statusCard" data-status="unknown">
-          <div class="card-topline"><span class="card-label"><i></i> ДЕЙСТВУЮЩИЙ СТАТУС</span><span class="card-ref">NXR / STATUS-01</span></div>
-          <div class="status-main">
-            <div class="status-emblem" aria-hidden="true"><span class="emblem-center"></span><span class="emblem-orbit"></span><span class="emblem-orbit inner"></span></div>
-            <div class="status-copy">
-              <span class="status-eyebrow" id="statusEyebrow">ПОЛУЧЕНИЕ ИНФОРМАЦИИ</span>
-              <h3 id="statusTitle">Загрузка<span class="ellipsis">...</span></h3>
-              <p id="statusDescription">Ожидаем ответ системы статусов.</p>
+      <div class="cards">
+        <article class="card" id="card-drone" data-state="loading">
+          <div class="card-top">
+            <div class="card-cat">
+              <span class="cat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              </span>
+              <div>
+                <span class="cat-name">Беспилотная</span>
+                <span class="cat-code">NXR · DRONE</span>
+              </div>
+            </div>
+            <span class="card-badge" id="drone-badge">—</span>
+          </div>
+          <div class="card-body">
+            <p class="status-code" id="drone-code">—</p>
+            <p class="status-label" id="drone-label">Загрузка…</p>
+          </div>
+          <div class="card-meta">
+            <div class="meta-item">
+              <span>Обновлено</span>
+              <b id="drone-updated">—</b>
+            </div>
+            <div class="meta-item">
+              <span>Возраст</span>
+              <b id="drone-age">—</b>
             </div>
           </div>
-          <div class="status-footer">
-            <div class="status-detail"><span>ПОСЛЕДНЕЕ ИЗМЕНЕНИЕ</span><b id="lastChanged">—</b></div>
-            <div class="status-detail"><span>ВРЕМЯ ДЕЙСТВИЯ</span><b id="activeDuration">—</b></div>
-            <div class="connection" id="connection"><i></i><span id="connectionText">СОЕДИНЕНИЕ</span></div>
-          </div>
-          <div class="card-corner corner-tl"></div><div class="card-corner corner-br"></div>
+          <div class="card-shine" aria-hidden="true"></div>
         </article>
 
-        <aside class="side-panel glass">
-          <div class="side-panel-heading"><span>СОСТОЯНИЕ СИСТЕМЫ</span><b>LIVE</b></div>
-          <div class="metric-row"><span class="metric-icon">↻</span><div><strong>05 <small>сек.</small></strong><span>Интервал обновления</span></div></div>
-          <div class="metric-row"><span class="metric-icon">▤</span><div><strong id="historyCount">00 / 50</strong><span>Записей в журнале</span></div></div>
-          <div class="side-separator"></div>
-          <div class="side-line"><span>Последняя проверка</span><b id="lastCheck">—</b></div>
-          <div class="side-line"><span>Источник данных</span><b>STATUS API</b></div>
-          <div class="side-line"><span>Режим просмотра</span><b class="read-only">READ ONLY</b></div>
-          <div class="side-note"><span class="note-star">✳</span><p>Панель отображает только внутриигровые статусы Nexus RP.</p></div>
-        </aside>
+        <article class="card" id="card-rocket" data-state="loading">
+          <div class="card-top">
+            <div class="card-cat">
+              <span class="cat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 3c0 0 6 4 6 11 0 4-2.5 7-6 8.5C8.5 21 6 18 6 14c0-7 6-11 6-11Z" stroke="currentColor" stroke-width="1.5"/><path d="M12 9v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="currentColor"/></svg>
+              </span>
+              <div>
+                <span class="cat-name">Ракетная</span>
+                <span class="cat-code">NXR · ROCKET</span>
+              </div>
+            </div>
+            <span class="card-badge" id="rocket-badge">—</span>
+          </div>
+          <div class="card-body">
+            <p class="status-code" id="rocket-code">—</p>
+            <p class="status-label" id="rocket-label">Загрузка…</p>
+          </div>
+          <div class="card-meta">
+            <div class="meta-item">
+              <span>Обновлено</span>
+              <b id="rocket-updated">—</b>
+            </div>
+            <div class="meta-item">
+              <span>Возраст</span>
+              <b id="rocket-age">—</b>
+            </div>
+          </div>
+          <div class="card-shine" aria-hidden="true"></div>
+        </article>
       </div>
 
-      <div class="status-legend">
-        <span><i class="legend-green"></i> КОД ЗЕЛЁНЫЙ — ШТАТНЫЙ РЕЖИМ</span>
-        <span><i class="legend-red"></i> КОД КРАСНЫЙ — ОСОБЫЙ РЕЖИМ</span>
+      <div class="legend">
+        <span><i class="lg green"></i> Код зелёный — штатный режим</span>
+        <span><i class="lg red"></i> Код красный — объявлена тревога</span>
+        <span><i class="lg stale"></i> Нет связи с сервером &gt; 2 мин</span>
       </div>
     </section>
 
-    <section class="wrap section journal-section" id="journal">
-      <div class="section-heading">
-        <div><span class="section-kicker">02 — EVENT LOG</span><h2>Журнал событий</h2><p>История смены игровых статусов.</p></div>
-        <div class="journal-counter"><strong id="historyCounter">00</strong><span>записей</span></div>
-      </div>
-      <div class="journal-panel glass">
-        <div class="journal-header"><span>СОБЫТИЕ</span><span>ДАТА / ВРЕМЯ</span></div>
-        <div class="journal-list" id="historyList">
-          <div class="empty-state"><span>✳</span><b>Журнал пока пуст</b><p>Когда статус изменится, запись появится здесь.</p></div>
+    <section class="journal-section wrap" id="journal">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Хроника изменений</p>
+          <h2 class="section-title">Журнал событий</h2>
         </div>
-        <div class="journal-footer"><span>ПОСЛЕДНИЕ 50 ЗАПИСЕЙ</span><span><i></i> АВТОСИНХРОНИЗАЦИЯ</span></div>
+        <div class="journal-count"><b id="historyCounter">0</b><span>/ 50</span></div>
       </div>
-    </section>
 
-    <section class="wrap section about-section" id="about">
-      <div class="about-card glass">
-        <div class="about-symbol"><span>СО</span><i></i></div>
-        <div class="about-text"><span class="section-kicker">03 — ABOUT THE SYSTEM</span><h2>Север Оператив</h2><p>Оператор внутриигровой системы статусов Nexus RP. Панель создана для своевременного информирования игроков о текущем состоянии игрового сервера и изменениях обстановки.</p></div>
-        <div class="about-meta"><span>ПРОЕКТ</span><b>NEXUS RP</b><span>СИСТЕМА</span><b>STATUS CENTER</b><span>ВЕРСИЯ</span><b>1.0.0</b></div>
+      <div class="timeline" id="timeline">
+        <div class="timeline-empty" id="timelineEmpty">
+          <div class="empty-orb"></div>
+          <p>Событий пока нет</p>
+          <span>Когда статус изменится в игре — запись появится здесь</span>
+        </div>
+        <ul class="timeline-list" id="timelineList" hidden></ul>
       </div>
     </section>
   </main>
 
-  <footer class="wrap footer">
-    <a class="footer-brand" href="#home">СЕВЕР <b>ОПЕРАТИВ</b></a>
-    <span>© <span id="year"></span> NEXUS ROLEPLAY</span>
-    <span class="footer-live"><i></i> STATUS CENTER</span>
+  <footer class="footer wrap">
+    <div class="footer-brand">NEXUS RP · СЕВЕР ОПЕРАТИВ</div>
+    <div class="footer-note">Внутриигровая информационная система · не является государственным сервисом</div>
   </footer>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
