@@ -43,7 +43,7 @@
     if (t) t.textContent = state ? 'СИСТЕМА НА СВЯЗИ' : 'НЕТ СОЕДИНЕНИЯ';
   }
 
-  function showStatus(current) {
+  function showStatusFromLegacy(current) {
     if (!card) return;
     if (!current) {
       card.dataset.status = 'unknown';
@@ -56,7 +56,7 @@
       return;
     }
     const green = current.status === 'green';
-    const stamp = dateParts(current.changed_at);
+    const stamp = dateParts(current.changed_at || current.updatedAt);
     card.dataset.status = green ? 'green' : 'red';
     byId('statusEyebrow').textContent = 'ТЕКУЩИЙ ИГРОВОЙ СТАТУС';
     byId('statusTitle').textContent = green ? 'Код зелёный' : 'Код красный';
@@ -64,7 +64,56 @@
       ? 'Штатный режим игрового сервера. Статус действует до следующего обновления.'
       : 'На сервере действует особый внутриигровой режим. Следите за обновлениями.';
     byId('lastChanged').textContent = stamp.time + ' · ' + stamp.date;
-    activeSince = current.changed_at;
+    activeSince = current.changed_at || current.updatedAt;
+    byId('activeDuration').textContent = elapsed(activeSince);
+  }
+
+  function showStatusFromCategories(categories) {
+    if (!card || !categories) return showStatusFromLegacy(null);
+    const drone = categories.drone || {};
+    const rocket = categories.rocket || {};
+    const droneLive = drone.displayStatus === 'red' || drone.displayStatus === 'green';
+    const rocketLive = rocket.displayStatus === 'red' || rocket.displayStatus === 'green';
+
+    const anyRed =
+      drone.displayStatus === 'red' || rocket.displayStatus === 'red';
+    const anyGreen =
+      drone.displayStatus === 'green' || rocket.displayStatus === 'green';
+
+    let overall = 'unknown';
+    if (anyRed) overall = 'red';
+    else if (anyGreen) overall = 'green';
+    else if (drone.isStale || rocket.isStale) overall = 'unknown';
+
+    const newest = [drone.updatedAt, rocket.updatedAt]
+      .filter(Boolean)
+      .sort()
+      .reverse()[0] || null;
+
+    const droneLabel =
+      drone.displayStatus === 'red' ? 'КРАСНЫЙ'
+        : drone.displayStatus === 'green' ? 'ЗЕЛЁНЫЙ'
+          : 'нет данных';
+    const rocketLabel =
+      rocket.displayStatus === 'red' ? 'КРАСНЫЙ'
+        : rocket.displayStatus === 'green' ? 'ЗЕЛЁНЫЙ'
+          : 'нет данных';
+
+    if (overall === 'unknown' && !droneLive && !rocketLive) {
+      return showStatusFromLegacy(null);
+    }
+
+    card.dataset.status = overall === 'red' ? 'red' : overall === 'green' ? 'green' : 'unknown';
+    byId('statusEyebrow').textContent = 'БЕСПИЛОТНАЯ · РАКЕТНАЯ';
+    byId('statusTitle').textContent =
+      overall === 'red' ? 'Код красный'
+        : overall === 'green' ? 'Код зелёный'
+          : 'Ожидание данных';
+    byId('statusDescription').textContent =
+      'Беспилотная: ' + droneLabel + ' · Ракетная: ' + rocketLabel;
+    const stamp = dateParts(newest);
+    byId('lastChanged').textContent = newest ? stamp.time + ' · ' + stamp.date : '—';
+    activeSince = newest;
     byId('activeDuration').textContent = elapsed(activeSince);
   }
 
@@ -81,10 +130,17 @@
       return;
     }
     historyList.innerHTML = list.map((item) => {
-      const green = item.status === 'green';
-      const stamp = dateParts(item.changed_at);
-      const title = green ? 'Установлен статус «Код зелёный»' : 'Установлен статус «Код красный»';
-      const detail = [item.changed_by, item.note].filter(Boolean).map(escapeHtml).join(' · ') || 'Событие игровой системы';
+      const status = item.newStatus || item.status;
+      const green = status === 'green';
+      const stamp = dateParts(item.updatedAt || item.changed_at);
+      const cat =
+        item.category === 'drone' ? 'Беспилотная'
+          : item.category === 'rocket' ? 'Ракетная'
+            : '';
+      const title = cat
+        ? (green ? cat + ': код зелёный' : cat + ': код красный')
+        : (green ? 'Установлен статус «Код зелёный»' : 'Установлен статус «Код красный»');
+      const detail = [item.source, item.changed_by, item.note].filter(Boolean).map(escapeHtml).join(' · ') || 'Событие игровой системы';
       return '<article class="history-item ' + (green ? 'green' : 'red') + '"><div class="event-main"><span class="event-badge">' + (green ? 'GREEN' : 'RED') + '</span><div><strong>' + title + '</strong><p>' + detail + '</p></div></div><div class="event-time"><b>' + stamp.time + '</b><span>' + stamp.date + '</span></div></article>';
     }).join('');
   }
@@ -104,16 +160,20 @@
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
       const data = await response.json().catch(() => ({}));
-      byId('lastCheck') && (byId('lastCheck').textContent = new Date().toLocaleTimeString('ru-RU'));
+      if (byId('lastCheck')) byId('lastCheck').textContent = new Date().toLocaleTimeString('ru-RU');
       if (!response.ok || !data.ok) {
         connectionState(false);
-        if (!lastGoodResponse) showStatus(null);
+        if (!lastGoodResponse) showStatusFromLegacy(null);
         toast('Нет связи с API статусов');
         return;
       }
       lastGoodResponse = true;
       connectionState(true);
-      showStatus(data.current);
+      if (data.categories) {
+        showStatusFromCategories(data.categories);
+      } else {
+        showStatusFromLegacy(data.current);
+      }
       showHistory(data.history);
     } catch (error) {
       connectionState(false);
@@ -148,66 +208,4 @@
 
   load();
   setInterval(load, INTERVAL);
-
-  /* TEMP diagnostics — remove later */
-  const dbgLogLines = [];
-  function dbgLog(msg) {
-    const line = new Date().toLocaleTimeString('ru-RU') + '  ' + msg;
-    dbgLogLines.unshift(line);
-    if (dbgLogLines.length > 40) dbgLogLines.pop();
-    const el = byId('dbgLog');
-    if (el) el.textContent = dbgLogLines.join('\n');
-  }
-  function setDbg(id, text, ok) {
-    const el = byId(id);
-    if (!el) return;
-    el.textContent = text;
-    el.classList.remove('ok', 'fail');
-    if (ok === true) el.classList.add('ok');
-    if (ok === false) el.classList.add('fail');
-  }
-  async function runDiagnostics() {
-    const fetchEl = byId('dbgFetch');
-    if (fetchEl) fetchEl.textContent = new Date().toLocaleTimeString('ru-RU');
-    try {
-      const hr = await fetch('/api/health', { cache: 'no-store' });
-      const hj = await hr.json().catch(() => ({}));
-      setDbg('dbgHealth', hr.status + ' · ' + (hj.ok ? 'ok' : 'fail'), Boolean(hj.ok));
-      setDbg('dbgDb', hj.database || ('HTTP ' + hr.status), hj.database === 'connected');
-      const d = hj.diagnostics || {};
-      setDbg('dbgDbUrl', d.hasDatabaseUrl ? 'задан' : 'НЕТ', Boolean(d.hasDatabaseUrl));
-      setDbg('dbgKey', d.hasApiKey ? 'задан' : 'НЕТ / короткий', Boolean(d.hasApiKey));
-      dbgLog('health ' + hr.status + ' ' + JSON.stringify(hj));
-    } catch (e) {
-      setDbg('dbgHealth', 'сеть: ' + e.message, false);
-      dbgLog('health ERROR ' + e.message);
-    }
-    try {
-      const sr = await fetch('/api/status', { cache: 'no-store' });
-      const sj = await sr.json().catch(() => ({}));
-      setDbg('dbgStatus', sr.status + ' · ' + (sj.ok ? 'ok' : (sj.error || 'fail')), Boolean(sj.ok));
-      if (sj.current) {
-        setDbg('dbgCurrent', sj.current.status + ' @ ' + (sj.current.changed_at || '—'), true);
-      } else {
-        setDbg('dbgCurrent', sj.ok ? 'ещё нет данных' : (sj.error || '—'), sj.ok ? null : false);
-      }
-      const hist = Array.isArray(sj.history) ? sj.history.length : 0;
-      setDbg('dbgHistory', hist + ' записей', sj.ok ? true : false);
-      dbgLog('status ' + sr.status + ' ' + JSON.stringify(sj).slice(0, 500));
-    } catch (e) {
-      setDbg('dbgStatus', 'сеть: ' + e.message, false);
-      dbgLog('status ERROR ' + e.message);
-    }
-  }
-  const debugToggle = byId('debugToggle');
-  if (debugToggle) {
-    debugToggle.addEventListener('click', () => {
-      const panel = byId('debugPanel');
-      if (!panel) return;
-      panel.classList.toggle('is-collapsed');
-      debugToggle.textContent = panel.classList.contains('is-collapsed') ? 'развернуть' : 'свернуть';
-    });
-  }
-  runDiagnostics();
-  setInterval(runDiagnostics, 5000);
 })();
