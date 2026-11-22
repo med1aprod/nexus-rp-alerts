@@ -1,14 +1,13 @@
 'use strict';
 
-(function () {
+(() => {
   const POLL_INTERVAL = 5000;
   const $ = (id) => document.getElementById(id);
   const card = $('statusCard');
   let currentSince = null;
   let lastPayload = null;
-  let toastTimer = null;
 
-  function dateParts(value) {
+  function formatDate(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return { date: '—', time: '' };
     return {
@@ -17,7 +16,7 @@
     };
   }
 
-  function duration(value) {
+  function formatDuration(value) {
     if (!value) return '—';
     const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
     const days = Math.floor(seconds / 86400);
@@ -34,86 +33,88 @@
     }[char]));
   }
 
-  function showConnection(connected) {
-    const indicator = $('connectionIndicator').parentElement;
-    indicator.classList.toggle('ok', connected);
-    indicator.classList.toggle('fail', !connected);
+  function setConnection(connected) {
+    $('connectionIndicatorWrap').classList.toggle('ok', connected);
+    $('connectionIndicatorWrap').classList.toggle('fail', !connected);
     $('connectionText').textContent = connected ? 'СИСТЕМА НА СВЯЗИ' : 'НЕТ СОЕДИНЕНИЯ';
-    $('updatedLabel').textContent = connected ? 'ДАННЫЕ АКТУАЛЬНЫ' : 'ОЖИДАНИЕ СОЕДИНЕНИЯ';
   }
 
   function renderStatus(current) {
     if (!current) {
       card.dataset.status = 'unknown';
-      $('statusCaption').textContent = 'СТАТУС ЕЩЁ НЕ ЗАДАН';
-      $('statusTitle').textContent = 'Нет данных';
-      $('statusDescription').textContent = 'Ожидаем первое обновление статуса от игровой системы.';
+      $('statusCaption').textContent = 'СТАТУС НЕ УСТАНОВЛЕН';
+      $('statusTitle').textContent = 'Ожидание данных';
+      $('statusDescription').textContent = 'Система ожидает первое обновление статуса от игрового сервера.';
       $('lastChanged').textContent = '—';
       $('duration').textContent = '—';
+      currentSince = null;
       return;
     }
-    const isGreen = current.status === 'green';
-    card.dataset.status = isGreen ? 'green' : 'red';
+    const green = current.status === 'green';
+    const stamp = formatDate(current.changed_at);
+    card.dataset.status = green ? 'green' : 'red';
     $('statusCaption').textContent = 'ТЕКУЩИЙ ИГРОВОЙ СТАТУС';
-    $('statusTitle').textContent = isGreen ? 'Код зелёный' : 'Код красный';
-    $('statusDescription').textContent = isGreen
-      ? 'Игровой сервер работает в штатном режиме.'
-      : 'На игровом сервере активирован специальный внутриигровой режим.';
-    $('lastChanged').textContent = dateParts(current.changed_at).time + ' · ' + dateParts(current.changed_at).date;
+    $('statusTitle').textContent = green ? 'Код зелёный' : 'Код красный';
+    $('statusDescription').textContent = green
+      ? 'Штатный режим игрового сервера. Статус действует до следующего обновления.'
+      : 'Активирован специальный внутриигровой режим. Следите за дальнейшими обновлениями.';
+    $('lastChanged').textContent = stamp.time + ' · ' + stamp.date;
     currentSince = current.changed_at;
-    $('duration').textContent = duration(currentSince);
+    $('duration').textContent = formatDuration(currentSince);
   }
 
   function renderHistory(items) {
-    $('historyCount').textContent = items.length + ' / 50';
+    $('historyCount').textContent = String(items.length).padStart(2, '0') + ' / 50';
     $('historyCounter').textContent = String(items.length).padStart(2, '0');
     if (!items.length) {
-      $('historyList').innerHTML = '<div class="empty-state"><span class="empty-icon">◷</span><strong>История пока пуста</strong><p>Когда статус изменится в игре, событие появится здесь.</p></div>';
+      $('historyList').innerHTML = '<div class="empty-state"><span class="empty-mark">—</span><strong>Событий пока нет</strong><p>Новые изменения появятся здесь автоматически.</p></div>';
       return;
     }
     $('historyList').innerHTML = items.map((item) => {
       const green = item.status === 'green';
-      const parts = dateParts(item.changed_at);
-      const title = green ? 'Активирован «Код зелёный»' : 'Активирован «Код красный»';
-      const detail = [item.changed_by, item.note].filter(Boolean).map(escapeHtml).join(' · ') || 'Системное событие Nexus RP';
-      return '<article class="history-item"><div class="event-main"><span class="event-icon ' + (green ? 'green' : 'red') + '">' + (green ? '✓' : '!' ) + '</span><div><div class="event-title">' + title + '</div><div class="event-meta">' + detail + '</div></div></div><div class="event-time">' + parts.time + '<small>' + parts.date + '</small></div></article>';
+      const stamp = formatDate(item.changed_at);
+      const title = green ? 'Установлен статус «Код зелёный»' : 'Установлен статус «Код красный»';
+      const details = [item.changed_by, item.note].filter(Boolean).map(escapeHtml).join(' · ') || 'Событие игровой системы';
+      return '<article class="history-item"><div class="event-main"><span class="event-icon ' + (green ? 'green' : 'red') + '">' + (green ? '✓' : '!') + '</span><div><div class="event-title">' + title + '</div><div class="event-meta">' + details + '</div></div></div><div class="event-time">' + stamp.time + '<small>' + stamp.date + '</small></div></article>';
     }).join('');
   }
 
   async function refresh() {
     try {
-      const response = await fetch('/api/status', { cache: 'no-store', headers: { 'Accept': 'application/json' } });
+      const response = await fetch('/api/status', { cache: 'no-store', headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error('API ' + response.status);
       const payload = await response.json();
       if (!payload.ok) throw new Error('API unavailable');
       lastPayload = payload;
       renderStatus(payload.current);
       renderHistory(Array.isArray(payload.history) ? payload.history.slice(0, 50) : []);
-      showConnection(true);
-      $('lastCheck').textContent = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
+      setConnection(true);
     } catch (_error) {
-      showConnection(false);
+      setConnection(false);
       if (!lastPayload) {
         card.dataset.status = 'unknown';
-        $('statusCaption').textContent = 'СОЕДИНЕНИЕ С API';
-        $('statusTitle').textContent = 'Система недоступна';
-        $('statusDescription').textContent = 'Не удалось получить данные. Повторная проверка будет выполнена автоматически.';
+        $('statusCaption').textContent = 'СОЕДИНЕНИЕ С СИСТЕМОЙ';
+        $('statusTitle').textContent = 'Нет связи';
+        $('statusDescription').textContent = 'Не удалось получить данные. Повторная проверка произойдёт автоматически.';
       }
-      $('lastCheck').textContent = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
     }
+    $('lastCheck').textContent = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date());
   }
 
   $('menuBtn').addEventListener('click', () => {
-    const open = $('navLinks')?.classList.toggle('open');
-    $('menuBtn').setAttribute('aria-expanded', String(Boolean(open)));
+    const open = $('navLinks').classList.toggle('open');
+    $('menuBtn').setAttribute('aria-expanded', String(open));
   });
-  document.querySelectorAll('.nav-links a').forEach((link) => link.addEventListener('click', () => {
-    document.querySelector('.nav-links').classList.remove('open');
+  document.querySelectorAll('.main-nav a').forEach((link) => link.addEventListener('click', () => {
+    $('navLinks').classList.remove('open');
     $('menuBtn').setAttribute('aria-expanded', 'false');
+    document.querySelectorAll('.main-nav a').forEach((item) => item.classList.toggle('active', item === link));
   }));
 
   $('year').textContent = new Date().getFullYear();
   refresh();
   setInterval(refresh, POLL_INTERVAL);
-  setInterval(() => { if (currentSince) $('duration').textContent = duration(currentSince); }, 30000);
+  setInterval(() => {
+    if (currentSince) $('duration').textContent = formatDuration(currentSince);
+  }, 30000);
 })();
