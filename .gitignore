@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+onreza-output/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.swp
+coverage/
+tmp/
+temp/

@@ -1,8 +1,8 @@
 {
   "name": "nexus-rp-alerts",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Nexus RP in-game status dashboard",
+  "description": "Север Оператив — система мониторинга игровых статусов Nexus RP (Беспилотная / Ракетная)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
