@@ -11,7 +11,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/debug.css">
   <script defer src="/app.js"></script>
 </head>
 <body>
@@ -123,24 +122,5 @@
     <span class="footer-live"><i></i> STATUS CENTER</span>
   </footer>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <!-- TEMP: diagnostic panel — remove later -->
-  <aside class="debug-panel" id="debugPanel" aria-label="Временная диагностика">
-    <div class="debug-head">
-      <strong>DEBUG · TEMP</strong>
-      <button type="button" id="debugToggle" class="debug-toggle">свернуть</button>
-    </div>
-    <div class="debug-body" id="debugBody">
-      <div class="debug-row"><span>Health</span><b id="dbgHealth">—</b></div>
-      <div class="debug-row"><span>Database</span><b id="dbgDb">—</b></div>
-      <div class="debug-row"><span>DATABASE_URL</span><b id="dbgDbUrl">—</b></div>
-      <div class="debug-row"><span>STATUS_API_KEY</span><b id="dbgKey">—</b></div>
-      <div class="debug-row"><span>Status API</span><b id="dbgStatus">—</b></div>
-      <div class="debug-row"><span>Текущий статус</span><b id="dbgCurrent">—</b></div>
-      <div class="debug-row"><span>История</span><b id="dbgHistory">—</b></div>
-      <div class="debug-row"><span>Последний fetch</span><b id="dbgFetch">—</b></div>
-      <pre class="debug-log" id="dbgLog">ожидание…</pre>
-    </div>
-  </aside>
 </body>
 </html>
