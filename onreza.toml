@@ -1,0 +1,7 @@
+# ONREZA deployment configuration
+# Run the Express application as a Node.js process, not a static file site.
+
+[deploy]
+compute = "process"
+runtime = "node"
+entry = "server.js"
