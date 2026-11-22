@@ -51,6 +51,21 @@
     if (text) text.textContent = label;
   }
 
+  function paintError(message) {
+    ['drone', 'rocket'].forEach((prefix) => {
+      const card = $('card-' + prefix);
+      if (card) card.dataset.state = 'stale';
+      const code = $(prefix + '-code');
+      const label = $(prefix + '-label');
+      const badge = $(prefix + '-badge');
+      if (code) code.textContent = '—';
+      if (label) label.textContent = message;
+      if (badge) badge.textContent = 'API';
+      if ($(prefix + '-updated')) $(prefix + '-updated').textContent = '—';
+      if ($(prefix + '-age')) $(prefix + '-age').textContent = '—';
+    });
+  }
+
   function paintCard(prefix, cat) {
     const card = $('card-' + prefix);
     if (!card || !cat) return;
@@ -146,8 +161,16 @@
     try {
       const res = await fetch('/api/status', { cache: 'no-store' });
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 503 || data.error === 'database_unavailable') {
+        setConn('fail', 'БД НЕДОСТУПНА');
+        paintError(data.message || 'База данных недоступна. Проверьте DATABASE_URL в ONREZA.');
+        return;
+      }
+
       if (!res.ok || !data.ok) {
         setConn('fail', 'НЕТ СВЯЗИ С API');
+        paintError('Нет ответа API. Идёт повтор…');
         return;
       }
 
@@ -155,11 +178,12 @@
       setConn(connected ? 'ok' : 'warn', connected ? 'СЕРВЕР НА СВЯЗИ' : 'НЕТ ПИНГА');
 
       const cats = data.categories || {};
-      paintCard('drone', cats.drone || { displayStatus: 'stale', status: null, isStale: true, ageSeconds: null });
-      paintCard('rocket', cats.rocket || { displayStatus: 'stale', status: null, isStale: true, ageSeconds: null });
+      paintCard('drone', cats.drone || { status: null, isStale: true, ageSeconds: null });
+      paintCard('rocket', cats.rocket || { status: null, isStale: true, ageSeconds: null });
       paintHistory(data.history);
     } catch (e) {
       setConn('fail', 'ОШИБКА СЕТИ');
+      paintError('Сеть: не удалось связаться с API. Повтор…');
       console.warn(e);
     }
   }
