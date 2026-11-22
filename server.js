@@ -98,7 +98,7 @@ function isAuthorized(req) {
   return crypto.timingSafeEqual(a, b);
 }
 
-function displayOf(row) {
+function displayOf(row, serverConnected) {
   if (!row) {
     return {
       category: null,
@@ -113,7 +113,9 @@ function displayOf(row) {
   }
   const updatedAt = new Date(row.updated_at);
   const ageSeconds = Math.floor((Date.now() - updatedAt.getTime()) / 1000);
-  const isStale = ageSeconds >= STALE_AFTER_SECONDS;
+  // Пока Roblox-сервер на связи — всегда green/red.
+  // Stale только если сервера нет дольше STALE_AFTER_SECONDS.
+  const isStale = !serverConnected;
   return {
     category: row.category,
     status: row.status,
@@ -157,17 +159,18 @@ app.get('/api/status', async (_req, res) => {
       pool.query('SELECT last_roblox_seen_at, last_heartbeat_at FROM system_state WHERE id = 1')
     ]);
     const state = stateRes.rows[0] || {};
+    const lastSeen = state.last_roblox_seen_at;
+    const isConnected = Boolean(
+      lastSeen && Date.now() - new Date(lastSeen).getTime() < STALE_AFTER_SECONDS * 1000
+    );
     const byCat = {};
-    for (const row of currentRes.rows) byCat[row.category] = displayOf(row);
+    for (const row of currentRes.rows) byCat[row.category] = displayOf(row, isConnected);
     for (const cat of ['drone', 'rocket']) {
       if (!byCat[cat]) {
-        byCat[cat] = displayOf(null);
+        byCat[cat] = displayOf(null, isConnected);
         byCat[cat].category = cat;
       }
     }
-    const lastSeen = state.last_roblox_seen_at;
-    const isConnected =
-      lastSeen && Date.now() - new Date(lastSeen).getTime() < STALE_AFTER_SECONDS * 1000;
 
     res.json({
       ok: true,
